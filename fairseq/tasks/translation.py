@@ -372,9 +372,9 @@ class TranslationTask(FairseqTask):
 
     def augment_sample(self, sample):
         augmented_sample = {
-            'id': sample['id'],
-            'nsentences': sample['nsentences'],
-            'ntokens': sample['ntokens'],
+            'id': sample['id'].clone(),
+            'nsentences': sample['nsentences'].clone(),
+            'ntokens': sample['ntokens'].clone(),
             'net_input': {
                 'src_tokens': None,
                 'src_lengths': sample['net_input']['src_lengths'].clone(),
@@ -388,6 +388,18 @@ class TranslationTask(FairseqTask):
             augmented_sample['net_input']['prev_output_tokens'] = self._mask_tokens(sample['net_input']['prev_output_tokens'], self.tgt_dict)
         else:
             raise ValueError("Augmentation schema {0} is not supported".format(self.args.augmentation_schema))
+
+        augmented_sample = {
+            'id': torch.cat((sample['id'], augmented_sample['id']), dim=0),
+            'nsentences': torch.cat((sample['nsentences'], augmented_sample['nsentences']), dim=0),
+            'ntokens': torch.cat((sample['ntokens'], augmented_sample['ntokens']), dim=0),
+            'net_input': {
+                'src_tokens': torch.cat((sample['net_input']['src_tokens'], augmented_sample['net_input']['src_tokens']), dim=0),
+                'src_lengths': torch.cat((sample['net_input']['src_lengths'], augmented_sample['net_input']['src_lengths']), dim=0),
+                'prev_output_tokens': torch.cat((sample['net_input']['prev_output_tokens'], augmented_sample['net_input']['prev_output_tokens']), dim=0),
+            },
+            'target': torch.cat((sample['target'], augmented_sample['target']), dim=0)
+        }
 
         return augmented_sample
 
