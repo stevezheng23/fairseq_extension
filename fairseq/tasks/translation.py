@@ -206,6 +206,27 @@ class TranslationTask(FairseqTask):
                                  'e.g., \'{"beam": 4, "lenpen": 0.6}\'')
         parser.add_argument('--eval-bleu-print-samples', action='store_true',
                             help='print sample generations during validation')
+
+        # options for task-specific data augmentation
+        parser.add_argument('--augmentation_schema', default='cut_off',  type=str,
+                            help='augmentation schema: e.g. `cut_off`')
+        parser.add_argument('--augmentation_masking_schema', default='word',  type=str,
+                            help='augmentation masking schema: e.g. `word`, `span`')
+        parser.add_argument('--augmentation_masking_probability', default=0.15, type=float,
+                            help='augmentation masking probability')
+        parser.add_argument('--augmentation_replacing_schema', default=None,  type=str,
+                            help='augmentation replacing schema: e.g. `mask`, `random`, `mixed`')
+        parser.add_argument("--augmentation_span_len_dist", default='geometric', type=str,
+                            help="augmentation span length distribution e.g. geometric, poisson, etc.")
+        parser.add_argument("--augmentation_max_span_len", type=int, default=10,
+                            help="augmentation maximum span length")
+        parser.add_argument("--augmentation_min_num_spans", type=int, default=5,
+                            help="augmentation minimum number of spans")
+        parser.add_argument("--augmentation_geometric_prob", type=float, default=0.2,
+                            help="augmentation probability of geometric distribution.")
+        parser.add_argument("--augmentation_poisson_lambda", type=float, default=5.0,
+                            help="augmentation lambda of poisson distribution.")
+
         # fmt: on
 
     def __init__(self, args, src_dict, tgt_dict):
