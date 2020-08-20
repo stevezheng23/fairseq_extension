@@ -11,6 +11,8 @@ import os
 
 import numpy as np
 
+import torch
+
 from fairseq import metrics, options, utils
 from fairseq.data import (
     AppendTokenDataset,
@@ -347,6 +349,27 @@ class TranslationTask(FairseqTask):
         """Return the max sentence length allowed by the task."""
         return (self.args.max_source_positions, self.args.max_target_positions)
 
+    def augment_sample(self, sample):
+        augmented_sample = {
+            'id': sample['id'],
+            'nsentences': sample['nsentences'],
+            'ntokens': sample['ntokens'],
+            'net_input': {
+                'src_tokens': None,
+                'src_lengths': sample['net_input']['src_lengths'].clone(),
+                'prev_output_tokens': None,
+            },
+            'target': sample['target'].clone()
+        }
+
+        if self.args.augmentation_schema == 'cut_off':
+            augmented_sample['net_input']['src_tokens'] = self._mask_tokens(sample['net_input']['src_tokens'], self.src_dict)
+            augmented_sample['net_input']['prev_output_tokens'] = self._mask_tokens(sample['net_input']['prev_output_tokens'], self.tgt_dict)
+        else:
+            raise ValueError("Augmentation schema {0} is not supported".format(self.args.augmentation_schema))
+
+        return augmented_sample
+
     @property
     def source_dictionary(self):
         """Return the source :class:`~fairseq.data.Dictionary`."""
@@ -392,3 +415,112 @@ class TranslationTask(FairseqTask):
             return sacrebleu.corpus_bleu(hyps, [refs], tokenize='none')
         else:
             return sacrebleu.corpus_bleu(hyps, [refs])
+
+    def _mask_tokens(self, inputs):
+        if self.args.augmentation_masking_schema == 'word':
+            masked_inputs = self._mask_tokens_by_word(inputs)
+        elif self.args.augmentation_masking_schema == 'span':
+            masked_inputs = self._mask_tokens_by_span(inputs)
+        else:
+            raise ValueError("The masking schema {0} is not supported".format(self.args.augmentation_masking_schema))
+
+        return masked_inputs
+
+    def _mask_tokens_by_word(self, inputs, vocab_dict):
+        vocab_size = len(vocab_dict)
+        bos_index, eos_index = vocab_dict.bos(), vocab_dict.eos()
+        pad_index, unk_index = vocab_dict.pad(), vocab_dict.unk()
+
+        available_token_indices = (inputs != bos_index) & (inputs != eos_index) & (inputs != pad_index) & (inputs != unk_index)
+        random_masking_indices = torch.bernoulli(torch.full(inputs.shape, self.args.augmentation_masking_probability, device=inputs.device)).bool()
+
+        masked_inputs = inputs.clone()
+        masking_indices = random_masking_indices & available_token_indices
+        self._replace_token(masked_inputs, masking_indices, unk_index, vocab_size)
+
+        return masked_inputs
+
+    def _mask_tokens_by_span(self, inputs, vocab_dict):
+        vocab_size = len(vocab_dict)
+        bos_index, eos_index = vocab_dict.bos(), vocab_dict.eos()
+        pad_index, unk_index = vocab_dict.pad(), vocab_dict.unk()
+
+        span_info_list = self.generate_spans(inputs)
+
+        num_spans = len(span_info_list)
+        masked_span_list = np.random.binomial(1, self.args.augmentation_masking_probability, size=num_spans).astype(bool)
+        masked_span_list = [span_info_list[i] for i, masked in enumerate(masked_span_list) if masked]
+
+        available_token_indices = (inputs != bos_index) & (inputs != eos_index) & (inputs != pad_index) & (inputs != unk_index)
+        random_masking_indices = torch.zeros_like(inputs)
+        for batch_index, seq_index, span_length in masked_span_list:
+            random_masking_indices[batch_index, seq_index:seq_index + span_length] = 1
+
+        masked_inputs = inputs.clone()
+        masking_indices = random_masking_indices.bool() & available_token_indices
+        self._replace_token(masked_inputs, masking_indices, unk_index, vocab_size)
+
+        return masked_inputs
+
+    def _sample_span_length(self, span_len_dist, max_span_len, geometric_prob=0.2, poisson_lambda=5.0):
+        if span_len_dist == 'geometric':
+            span_length = min(np.random.geometric(geometric_prob) + 1, max_span_len)
+        elif span_len_dist == 'poisson':
+            span_length = min(np.random.poisson(poisson_lambda) + 1, max_span_len)
+        else:
+            span_length = np.random.randint(max_span_len) + 1
+
+        return span_length
+
+    def _get_default_spans(self, batch_index, seq_length, num_spans):
+        span_length = int((seq_length - 2) / num_spans)
+        last_span_length = seq_length - 2 - (num_spans - 1) * span_length
+        span_infos = []
+        for i in range(num_spans):
+            span_info = (batch_index, 1 + i * span_length, span_length if i < num_spans - 1 else last_span_length)
+            span_infos.append(span_info)
+
+        return span_infos
+
+    def _generate_spans(self, inputs):
+        batch_size, seq_length = inputs.size()[0], inputs.size()[1]
+
+        span_info_list = []
+        for batch_index in range(batch_size):
+            span_infos = []
+            seq_index = 1
+            max_index = seq_length - 2
+            while seq_index <= max_index:
+                span_length = self._sample_span_length(self.args.augmentation_span_len_dist,
+                    self.args.augmentation_max_span_len, self.args.augmentation_geometric_prob, self.args.augmentation_poisson_lambda)
+                span_length = min(span_length, max_index - seq_index + 1)
+
+                span_infos.append((batch_index, seq_index, span_length))
+                seq_index += span_length
+
+            if len(span_infos) < self.args.augmentation_min_num_spans:
+                span_infos = self._get_default_spans(batch_index, seq_length, self.args.augmentation_min_num_spans)
+
+            span_info_list.extend(span_infos)
+
+        return span_info_list
+
+    def _replace_token(self, inputs, masking_indices, mask_index, vocab_size):
+        if self.args.augmentation_replacing_schema == 'mask':
+            inputs[masking_indices] = mask_index
+        elif self.args.augmentation_replacing_schema == 'random':
+            random_words = torch.randint(vocab_size, inputs.shape, device=inputs.device, dtype=torch.long)
+            inputs[masking_indices] = random_words[masking_indices]
+        elif self.args.augmentation_replacing_schema == 'mixed':
+            # 80% of the time, we replace masked input tokens with <unk> token
+            mask_token_indices = torch.bernoulli(torch.full(inputs.shape, 0.8, device=inputs.device)).bool() & masking_indices
+            inputs[mask_token_indices] = mask_index
+
+            # 10% of the time, we replace masked input tokens with random word
+            random_token_indices = torch.bernoulli(torch.full(inputs.shape, 0.5, device=inputs.device)).bool() & masking_indices & ~mask_token_indices
+            random_words = torch.randint(vocab_size, inputs.shape, device=inputs.device, dtype=torch.long)
+            inputs[random_token_indices] = random_words[random_token_indices]
+
+            # The rest of the time (10% of the time) we keep the masked input tokens unchanged
+        else:
+            raise ValueError("The replacing schema: {0} is not supported. Only support ['mask', 'random', 'mixed']".format(self.args.augmentation_replacing_schema))
