@@ -453,6 +453,9 @@ class FairseqTask(object):
         """Return the max input length allowed by the task."""
         return None
 
+    def augment_sample(self, sample):
+        return sample
+
     @property
     def source_dictionary(self):
         """Return the source :class:`~fairseq.data.Dictionary` (if applicable
