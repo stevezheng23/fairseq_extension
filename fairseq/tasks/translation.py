@@ -371,6 +371,9 @@ class TranslationTask(FairseqTask):
         return (self.args.max_source_positions, self.args.max_target_positions)
 
     def augment_sample(self, sample):
+        if sample is None or len(sample) == 0:
+            return sample
+
         augmented_sample = {
             'id': sample['id'].clone(),
             'nsentences': sample['nsentences'],
@@ -449,11 +452,11 @@ class TranslationTask(FairseqTask):
         else:
             return sacrebleu.corpus_bleu(hyps, [refs])
 
-    def _mask_tokens(self, inputs):
+    def _mask_tokens(self, inputs, vocab_dict):
         if self.args.augmentation_masking_schema == 'word':
-            masked_inputs = self._mask_tokens_by_word(inputs)
+            masked_inputs = self._mask_tokens_by_word(inputs, vocab_dict)
         elif self.args.augmentation_masking_schema == 'span':
-            masked_inputs = self._mask_tokens_by_span(inputs)
+            masked_inputs = self._mask_tokens_by_span(inputs, vocab_dict)
         else:
             raise ValueError("The masking schema {0} is not supported".format(self.args.augmentation_masking_schema))
 
