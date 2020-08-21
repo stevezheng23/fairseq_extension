@@ -373,8 +373,8 @@ class TranslationTask(FairseqTask):
     def augment_sample(self, sample):
         augmented_sample = {
             'id': sample['id'].clone(),
-            'nsentences': sample['nsentences'].clone(),
-            'ntokens': sample['ntokens'].clone(),
+            'nsentences': sample['nsentences'],
+            'ntokens': sample['ntokens'],
             'net_input': {
                 'src_tokens': None,
                 'src_lengths': sample['net_input']['src_lengths'].clone(),
@@ -391,8 +391,8 @@ class TranslationTask(FairseqTask):
 
         augmented_sample = {
             'id': torch.cat((sample['id'], augmented_sample['id']), dim=0),
-            'nsentences': torch.cat((sample['nsentences'], augmented_sample['nsentences']), dim=0),
-            'ntokens': torch.cat((sample['ntokens'], augmented_sample['ntokens']), dim=0),
+            'nsentences': sample['nsentences'] + augmented_sample['nsentences'],
+            'ntokens': sample['ntokens'] + augmented_sample['ntokens'],
             'net_input': {
                 'src_tokens': torch.cat((sample['net_input']['src_tokens'], augmented_sample['net_input']['src_tokens']), dim=0),
                 'src_lengths': torch.cat((sample['net_input']['src_lengths'], augmented_sample['net_input']['src_lengths']), dim=0),
