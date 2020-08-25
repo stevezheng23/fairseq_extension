@@ -481,7 +481,7 @@ class TranslationTask(FairseqTask):
         bos_index, eos_index = vocab_dict.bos(), vocab_dict.eos()
         pad_index, unk_index = vocab_dict.pad(), vocab_dict.unk()
 
-        span_info_list = self.generate_spans(inputs)
+        span_info_list = self._generate_spans(inputs)
 
         num_spans = len(span_info_list)
         masked_span_list = np.random.binomial(1, self.args.augmentation_masking_probability, size=num_spans).astype(bool)
