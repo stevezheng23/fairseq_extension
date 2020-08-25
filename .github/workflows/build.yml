@@ -3,8 +3,6 @@ name: build
 on:
   # Trigger the workflow on push to master or any pull request
   push:
-    branches:
-      - master
   pull_request:
 
 jobs:
