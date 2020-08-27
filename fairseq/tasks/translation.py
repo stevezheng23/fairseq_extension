@@ -209,7 +209,7 @@ class TranslationTask(FairseqTask):
 
         # options for task-specific data augmentation
         parser.add_argument('--augmentation_schema', default='cut_off',  type=str,
-                            help='augmentation schema: e.g. `cut_off`')
+                            help='augmentation schema: e.g. `cut_off`, `src_cut_off`, `trg_cut_off`')
         parser.add_argument('--augmentation_masking_schema', default='word',  type=str,
                             help='augmentation masking schema: e.g. `word`, `span`')
         parser.add_argument('--augmentation_masking_probability', default=0.15, type=float,
@@ -388,6 +388,12 @@ class TranslationTask(FairseqTask):
 
         if self.args.augmentation_schema == 'cut_off':
             augmented_sample['net_input']['src_tokens'] = self._mask_tokens(sample['net_input']['src_tokens'], self.src_dict)
+            augmented_sample['net_input']['prev_output_tokens'] = self._mask_tokens(sample['net_input']['prev_output_tokens'], self.tgt_dict)
+        elif self.args.augmentation_schema == 'src_cut_off':
+            augmented_sample['net_input']['src_tokens'] = self._mask_tokens(sample['net_input']['src_tokens'], self.src_dict)
+            augmented_sample['net_input']['prev_output_tokens'] = augmented_sample['net_input']['prev_output_tokens'].clone()
+        elif self.args.augmentation_schema == 'trg_cut_off':
+            augmented_sample['net_input']['src_tokens'] = augmented_sample['net_input']['src_tokens'].clone()
             augmented_sample['net_input']['prev_output_tokens'] = self._mask_tokens(sample['net_input']['prev_output_tokens'], self.tgt_dict)
         else:
             raise ValueError("Augmentation schema {0} is not supported".format(self.args.augmentation_schema))
