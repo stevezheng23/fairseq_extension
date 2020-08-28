@@ -391,9 +391,9 @@ class TranslationTask(FairseqTask):
             augmented_sample['net_input']['prev_output_tokens'] = self._mask_tokens(sample['net_input']['prev_output_tokens'], self.tgt_dict)
         elif self.args.augmentation_schema == 'src_cut_off':
             augmented_sample['net_input']['src_tokens'] = self._mask_tokens(sample['net_input']['src_tokens'], self.src_dict)
-            augmented_sample['net_input']['prev_output_tokens'] = augmented_sample['net_input']['prev_output_tokens'].clone()
+            augmented_sample['net_input']['prev_output_tokens'] = sample['net_input']['prev_output_tokens'].clone()
         elif self.args.augmentation_schema == 'trg_cut_off':
-            augmented_sample['net_input']['src_tokens'] = augmented_sample['net_input']['src_tokens'].clone()
+            augmented_sample['net_input']['src_tokens'] = sample['net_input']['src_tokens'].clone()
             augmented_sample['net_input']['prev_output_tokens'] = self._mask_tokens(sample['net_input']['prev_output_tokens'], self.tgt_dict)
         else:
             raise ValueError("Augmentation schema {0} is not supported".format(self.args.augmentation_schema))
