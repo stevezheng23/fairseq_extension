@@ -403,9 +403,6 @@ class Trainer(object):
         # forward and backward pass
         logging_outputs, sample_size, ooms = [], 0, 0
         for i, sample in enumerate(samples):
-            if self.args.augmentation:
-                sample = self.task.augment_sample(sample)
-
             sample = self._prepare_sample(sample)
             if sample is None:
                 # when sample is None, run forward/backward on a dummy batch
@@ -414,6 +411,9 @@ class Trainer(object):
                 is_dummy_batch = True
             else:
                 is_dummy_batch = False
+
+            if self.args.augmentation:
+                sample = self.task.augment_sample(sample)
 
             def maybe_no_sync():
                 """

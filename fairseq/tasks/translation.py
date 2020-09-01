@@ -210,6 +210,8 @@ class TranslationTask(FairseqTask):
         # options for task-specific data augmentation
         parser.add_argument('--augmentation_schema', default='cut_off',  type=str,
                             help='augmentation schema: e.g. `cut_off`, `src_cut_off`, `trg_cut_off`')
+        parser.add_argument('--augmentation_merge_sample', action='store_true', default=False,
+                            help='merge original and augmented samples together')
         parser.add_argument('--augmentation_masking_schema', default='word',  type=str,
                             help='augmentation masking schema: e.g. `word`, `span`')
         parser.add_argument('--augmentation_masking_probability', default=0.15, type=float,
@@ -398,19 +400,25 @@ class TranslationTask(FairseqTask):
         else:
             raise ValueError("Augmentation schema {0} is not supported".format(self.args.augmentation_schema))
 
-        augmented_sample = {
-            'id': torch.cat((sample['id'], augmented_sample['id']), dim=0),
-            'nsentences': sample['nsentences'] + augmented_sample['nsentences'],
-            'ntokens': sample['ntokens'] + augmented_sample['ntokens'],
-            'net_input': {
-                'src_tokens': torch.cat((sample['net_input']['src_tokens'], augmented_sample['net_input']['src_tokens']), dim=0),
-                'src_lengths': torch.cat((sample['net_input']['src_lengths'], augmented_sample['net_input']['src_lengths']), dim=0),
-                'prev_output_tokens': torch.cat((sample['net_input']['prev_output_tokens'], augmented_sample['net_input']['prev_output_tokens']), dim=0),
-            },
-            'target': torch.cat((sample['target'], augmented_sample['target']), dim=0)
-        }
+        if self.args.augmentation_merge_sample:
+            sample = {
+                'id': torch.cat((sample['id'], augmented_sample['id']), dim=0),
+                'nsentences': sample['nsentences'] + augmented_sample['nsentences'],
+                'ntokens': sample['ntokens'] + augmented_sample['ntokens'],
+                'net_input': {
+                    'src_tokens': torch.cat((sample['net_input']['src_tokens'], augmented_sample['net_input']['src_tokens']), dim=0),
+                    'src_lengths': torch.cat((sample['net_input']['src_lengths'], augmented_sample['net_input']['src_lengths']), dim=0),
+                    'prev_output_tokens': torch.cat((sample['net_input']['prev_output_tokens'], augmented_sample['net_input']['prev_output_tokens']), dim=0),
+                },
+                'target': torch.cat((sample['target'], augmented_sample['target']), dim=0)
+            }
+        else:
+            sample = {
+                'primary': sample,
+                'secondary': augmented_sample,
+            }
 
-        return augmented_sample
+        return sample
 
     @property
     def source_dictionary(self):
