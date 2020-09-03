@@ -24,7 +24,7 @@ class LabelSmoothedCrossEntropyCriterionWithRegularization(LabelSmoothedCrossEnt
     def add_args(parser):
         """Add criterion-specific arguments to the parser."""
         LabelSmoothedCrossEntropyCriterion.add_args(parser)
-        parser.add_argument('--regularization_weight', default=0.01, type=float, metavar='D',
+        parser.add_argument('--regularization_weight', default=1.0, type=float, metavar='D',
                             help='weight for the regularization loss')
 
     def forward(self, model, sample, reduce=True):
