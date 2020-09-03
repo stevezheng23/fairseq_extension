@@ -43,7 +43,10 @@ class LabelSmoothedCrossEntropyCriterionWithRegularization(LabelSmoothedCrossEnt
         secondary_loss, secondary_nll_loss = self.compute_loss(model, secondary_net_output, sample['secondary'], reduce=reduce)
         secondary_sample_size = sample['secondary']['target'].size(0) if self.sentence_avg else sample['secondary']['ntokens']
 
-        regularization_loss = self.compute_regularization_loss(model, primary_net_output, secondary_net_output, reduce=reduce)
+        primary_targets = model.get_targets(sample['primary'], primary_net_output).unsqueeze(-1)
+        secondary_targets = model.get_targets(sample['secondary'], secondary_net_output).unsqueeze(-1)
+        pad_mask = primary_targets.eq(self.padding_idx) | secondary_targets.eq(self.padding_idx)
+        regularization_loss = self.compute_regularization_loss(model, primary_net_output, secondary_net_output, pad_mask=pad_mask, reduce=reduce)
 
         loss = primary_loss + secondary_loss + self.regularization_weight * regularization_loss
         nll_loss = primary_nll_loss + secondary_nll_loss
@@ -62,13 +65,23 @@ class LabelSmoothedCrossEntropyCriterionWithRegularization(LabelSmoothedCrossEnt
 
         return loss, sample_size, logging_output
 
-    def compute_regularization_loss(self, model, primary_net_output, secondary_net_output, reduce=True):
+    def compute_regularization_loss(self, model, primary_net_output, secondary_net_output, pad_mask=None, reduce=True):
         mean_net_output = (primary_net_output[0] + secondary_net_output[0]) / 2
-        m = model.get_normalized_probs(mean_net_output, log_probs=False)
-        p = model.get_normalized_probs(primary_net_output[0], log_probs=True)
-        q = model.get_normalized_probs(secondary_net_output[0], log_probs=True)
-        reduction = 'sum' if reduce else 'none'
-        loss = (F.kl_div(p, m, reduction=reduction) + F.kl_div(q, m, reduction=reduction)) / 2
+        m = model.get_normalized_probs((mean_net_output,), log_probs=False)
+        p = model.get_normalized_probs(primary_net_output, log_probs=True)
+        q = model.get_normalized_probs(secondary_net_output, log_probs=True)
+
+        primary_loss = F.kl_div(p, m, reduction='none')
+        secondary_loss = F.kl_div(q, m, reduction='none')
+        if pad_mask is not None:
+            primary_loss.masked_fill_(pad_mask, 0.)
+            secondary_loss.masked_fill_(pad_mask, 0.)
+
+        if reduce:
+            primary_loss = primary_loss.sum()
+            secondary_loss = secondary_loss.sum()
+
+        loss = (primary_loss + secondary_loss) / 2
         return loss
 
     @staticmethod
