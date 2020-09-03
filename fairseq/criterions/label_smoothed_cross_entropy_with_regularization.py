@@ -43,7 +43,7 @@ class LabelSmoothedCrossEntropyCriterionWithRegularization(LabelSmoothedCrossEnt
         secondary_loss, secondary_nll_loss = self.compute_loss(model, secondary_net_output, sample['secondary'], reduce=reduce)
         secondary_sample_size = sample['secondary']['target'].size(0) if self.sentence_avg else sample['secondary']['ntokens']
 
-        regularization_loss = self.compute_regularization_loss(primary_net_output, secondary_net_output)
+        regularization_loss = self.compute_regularization_loss(model, primary_net_output, secondary_net_output, reduce=reduce)
 
         loss = primary_loss + secondary_loss + self.regularization_weight * regularization_loss
         nll_loss = primary_nll_loss + secondary_nll_loss
@@ -62,12 +62,13 @@ class LabelSmoothedCrossEntropyCriterionWithRegularization(LabelSmoothedCrossEnt
 
         return loss, sample_size, logging_output
 
-    def compute_regularization_loss(self, model, primary_net_output, secondary_net_output):
-        mean_net_output = (primary_net_output + secondary_net_output) / 2
+    def compute_regularization_loss(self, model, primary_net_output, secondary_net_output, reduce=True):
+        mean_net_output = (primary_net_output[0] + secondary_net_output[0]) / 2
         m = model.get_normalized_probs(mean_net_output, log_probs=False)
-        p = model.get_normalized_probs(primary_net_output, log_probs=True)
-        q = model.get_normalized_probs(secondary_net_output, log_probs=True)
-        loss = (F.kl_div(p, m) + F.kl_div(q, m)) / 2
+        p = model.get_normalized_probs(primary_net_output[0], log_probs=True)
+        q = model.get_normalized_probs(secondary_net_output[0], log_probs=True)
+        reduction = 'sum' if reduce else 'none'
+        loss = (F.kl_div(p, m, reduction=reduction) + F.kl_div(q, m, reduction=reduction)) / 2
         return loss
 
     @staticmethod
