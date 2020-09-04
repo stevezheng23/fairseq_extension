@@ -373,9 +373,6 @@ class TranslationTask(FairseqTask):
         return (self.args.max_source_positions, self.args.max_target_positions)
 
     def augment_sample(self, sample):
-        if sample is None or len(sample) == 0:
-            return sample
-
         augmented_sample = {
             'id': sample['id'].clone(),
             'nsentences': sample['nsentences'],

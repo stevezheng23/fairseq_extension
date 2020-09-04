@@ -413,6 +413,9 @@ class Trainer(object):
                 is_dummy_batch = False
 
             if self.args.augmentation:
+                if sample is None or len(sample) == 0:
+                    continue
+
                 sample = self.task.augment_sample(sample)
 
             def maybe_no_sync():
