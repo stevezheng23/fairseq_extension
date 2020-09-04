@@ -35,6 +35,9 @@ class LabelSmoothedCrossEntropyCriterionWithRegularization(LabelSmoothedCrossEnt
         2) the sample size, which is used as the denominator for the gradient
         3) logging outputs to display while training
         """
+        if 'primary' not in sample or 'secondary' not in sample:
+            return super().forward(model, sample, reduce=reduce)
+
         primary_net_output = model(**sample['primary']['net_input'])
         primary_loss, primary_nll_loss = self.compute_loss(model, primary_net_output, sample['primary'], reduce=reduce)
         primary_sample_size = sample['primary']['target'].size(0) if self.sentence_avg else sample['primary']['ntokens']
