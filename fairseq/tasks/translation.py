@@ -218,6 +218,8 @@ class TranslationTask(FairseqTask):
                             help='augmentation masking probability')
         parser.add_argument('--augmentation_replacing_schema', default=None,  type=str,
                             help='augmentation replacing schema: e.g. `mask`, `random`, `mixed`')
+        parser.add_argument("--augmentation_span_type", type=str, default='sample',
+                            help="augmentation span type e.g. sample, w_sample, ws_sample, etc.")
         parser.add_argument("--augmentation_span_len_dist", default='geometric', type=str,
                             help="augmentation span length distribution e.g. geometric, poisson, etc.")
         parser.add_argument("--augmentation_max_span_len", type=int, default=10,
@@ -530,25 +532,14 @@ class TranslationTask(FairseqTask):
         return span_infos
 
     def _generate_spans(self, inputs):
-        batch_size, seq_length = inputs.size()[0], inputs.size()[1]
-
-        span_info_list = []
-        for batch_index in range(batch_size):
-            span_infos = []
-            seq_index = 1
-            max_index = seq_length - 2
-            while seq_index <= max_index:
-                span_length = self._sample_span_length(self.args.augmentation_span_len_dist,
-                    self.args.augmentation_max_span_len, self.args.augmentation_geometric_prob, self.args.augmentation_poisson_lambda)
-                span_length = min(span_length, max_index - seq_index + 1)
-
-                span_infos.append((batch_index, seq_index, span_length))
-                seq_index += span_length
-
-            if len(span_infos) < self.args.augmentation_min_num_spans:
-                span_infos = self._get_default_spans(batch_index, seq_length, self.args.augmentation_min_num_spans)
-
-            span_info_list.extend(span_infos)
+        if self.args.augmentation_span_type == 'sample':
+            span_info_list = self._generate_spans_by_sample(inputs)
+        elif self.args.augmentation_span_type == 'w_sample':
+            span_info_list = self._generate_spans_by_w_sample(inputs)
+        elif self.args.augmentation_span_type == 'ws_sample':
+            span_info_list = self._generate_spans_by_ws_sample(inputs)
+        else:
+            raise ValueError("Span type {0} is not supported".format(self.args.augmentation_span_type))
 
         return span_info_list
 
