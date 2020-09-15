@@ -552,6 +552,94 @@ class TranslationTask(FairseqTask):
 
         return span_info_list
 
+    def _generate_spans_by_sample(self, inputs):
+        batch_size, seq_length = inputs.size()[0], inputs.size()[1]
+
+        span_info_list = []
+        for batch_index in range(batch_size):
+            span_infos = []
+            seq_index = 1
+            max_index = seq_length - 2
+            while seq_index <= max_index:
+                span_length = self._sample_span_length(self.args.augmentation_span_len_dist,
+                    self.args.augmentation_max_span_len, self.args.augmentation_geometric_prob, self.args.augmentation_poisson_lambda)
+                span_length = min(span_length, max_index - seq_index + 1)
+
+                span_infos.append((batch_index, seq_index, span_length))
+                seq_index += span_length
+
+            if len(span_infos) < self.args.augmentation_min_num_spans:
+                span_infos = self._get_default_spans(batch_index, seq_length, self.args.augmentation_min_num_spans)
+
+            span_info_list.extend(span_infos)
+
+        return span_info_list
+
+    def _generate_spans_by_w_sample(self, inputs):
+        batch_size, seq_length = inputs.size()[0], inputs.size()[1]
+        input_words = ((inputs & ((1 << 25) - 1)) >> 16) - 1
+
+        span_info_list = []
+        for batch_index in range(batch_size):
+            span_infos = []
+            seq_index = 1
+            max_index = seq_length - 2
+            while seq_index < max_index:
+                span_length = self._sample_span_length(self.args.augmentation_span_len_dist,
+                    self.args.augmentation_max_span_len, self.args.augmentation_geometric_prob, self.args.augmentation_poisson_lambda)
+                span_length = min(span_length, max_index - seq_index + 1)
+
+                word_id = input_words[batch_index, seq_index + span_length - 1]
+                if word_id >= 0:
+                    word_index = (input_words[batch_index, :] == word_id + 1).nonzero().squeeze(-1)
+                    span_length = (word_index[0] - seq_index).item() if word_index.nelement() > 0 else max_index - seq_index + 1
+
+                span_infos.append((batch_index, seq_index, span_length))
+                seq_index += span_length
+
+            if len(span_infos) < self.args.augmentation_min_num_spans:
+                span_infos = self._get_default_spans(batch_index, seq_length, self.args.augmentation_min_num_spans)
+
+            span_info_list.extend(span_infos)
+
+        return span_info_list
+
+    def _generate_spans_by_ws_sample(self, inputs):
+        batch_size, seq_length = inputs.size()[0], inputs.size()[1]
+        input_segments = (inputs >> 25) - 1
+        input_words = ((inputs & ((1 << 25) - 1)) >> 16) - 1
+
+        span_info_list = []
+        for batch_index in range(batch_size):
+            span_infos = []
+            seq_index = 1
+            max_index = seq_length - 2
+            while seq_index < max_index:
+                span_length = self._sample_span_length(self.args.augmentation_span_len_dist,
+                    self.args.augmentation_max_span_len, self.args.augmentation_geometric_prob, self.args.augmentation_poisson_lambda)
+                span_length = min(span_length, max_index - seq_index + 1)
+
+                segment_start_id = input_segments[batch_index, seq_index]
+                segment_end_id = input_segments[batch_index, seq_index + span_length - 1]
+                if segment_start_id != segment_end_id:
+                    segment_index = (input_segments[batch_index, :] == segment_start_id).nonzero().squeeze(-1)
+                    span_length = (segment_index[-1] - seq_index + 1).item()
+
+                word_id = input_words[batch_index, seq_index + span_length - 1]
+                if word_id >= 0:
+                    word_index = (input_words[batch_index, :] == word_id + 1).nonzero().squeeze(-1)
+                    span_length = (word_index[0] - seq_index).item() if word_index.nelement() > 0 else max_index - seq_index + 1
+
+                span_infos.append((batch_index, seq_index, span_length))
+                seq_index += span_length
+
+            if len(span_infos) < self.args.augmentation_min_num_spans:
+                span_infos = self._get_default_spans(batch_index, seq_length, self.args.augmentation_min_num_spans)
+
+            span_info_list.extend(span_infos)
+
+        return span_info_list
+
     def _replace_token(self, inputs, masking_indices, mask_index, vocab_size):
         if self.args.augmentation_replacing_schema == 'mask':
             inputs[masking_indices] = mask_index
