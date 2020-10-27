@@ -1,13 +1,25 @@
 # Neural Machine Translation
 
-## NMT results & experiments
+## NMT results
+
+### IWSLT'14 German to English (Transformers)
+| Task          | Setting           | Approach   | BLEU      |
+|---------------|-------------------|------------|-----------|
+| iwslt14 de-en | transformer-small | w/o cutoff | 36.24     |
+| iwslt14 de-en | transformer-small | w/ cutoff  | **37.61** |
 
 ### WMT'14 English to German (Transformers)
-| Task          | Setting           | Approach   | BLEU |
-|---------------|-------------------|------------|------|
-| iwslt14 de-en | transformer-small | w/o cutoff |------|
-| iwslt14 de-en | transformer-small | w/ cutoff  |------|
 
+| Task          | Setting           | Approach   | BLEU      |
+|---------------|-------------------|------------|-----------|
+| wmt14 en-de   | transformer-base  | w/o cutoff | 28.61     |
+| wmt14 en-de   | transformer-base  | w/ cutoff  | 29.06     |
+| wmt14 en-de   | transformer-big   | w/o cutoff | 29.47     |
+| wmt14 en-de   | transformer-big   | w/ cutoff  | **30.30** |
+
+## NMT experiments
+
+### IWSLT'14 German to English (Transformers)
 The following instructions can be used to train a Transformer-based model on the IWSLT'14 German to English dataset.
 
 The IWSLT'14 German to English dataset can be preprocessed using the `prepare-iwslt14.sh` script.
@@ -115,12 +127,6 @@ LC_ALL=C.UTF-8 python fairseq_cli/score.py \
 ```
 
 ### WMT'14 English to German (Transformers)
-| Task          | Setting           | Approach   | BLEU |
-|---------------|-------------------|------------|------|
-| wmt14 en-de   | transformer-base  | w/o cutoff |------|
-| wmt14 en-de   | transformer-base  | w/ cutoff  |------|
-| wmt14 en-de   | transformer-big   | w/o cutoff |------|
-| wmt14 en-de   | transformer-big   | w/ cutoff  |------|
 
 The following instructions can be used to train a Transformer-based model on the WMT English to German dataset.
 
