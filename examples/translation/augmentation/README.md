@@ -68,7 +68,7 @@ fairseq_cli/train.py $BIN \
 --log-format tqdm \
 --log-interval 100 \
 --save-dir $RESULT \
---seed 10000
+--seed 2128977
 
 # Train the model w/ cutoff
 RESULT=results/transformer_small_iwslt14_de2en_cutoff
@@ -105,7 +105,7 @@ fairseq_cli/train.py $BIN \
 --log-format tqdm \
 --log-interval 100 \
 --save-dir $RESULT \
---seed 10000
+--seed 40199672
 
 # Evaluate
 RESULT=results/transformer_small_iwslt14_de2en
@@ -179,7 +179,7 @@ fairseq_cli/train.py $BIN \
 --log-format tqdm \
 --log-interval 100 \
 --save-dir $RESULT \
---seed 10000
+--seed 97926458
 
 # Train the model w/ cutoff
 RESULT=results/transformer_base_wmt14_en2de_cutoff
@@ -214,7 +214,7 @@ fairseq_cli/train.py $BIN \
 --log-format tqdm \
 --log-interval 100 \
 --save-dir $RESULT \
---seed 10000
+--seed 5998856
 
 # Evaluate
 RESULT=results/transformer_base_wmt14_en2de
